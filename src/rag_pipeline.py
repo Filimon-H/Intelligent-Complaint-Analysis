@@ -14,10 +14,34 @@ from langchain.llms import HuggingFacePipeline
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 
+
 # Step 1: Load the FAISS vector store (using the saved index.pkl)
-def load_vector_store(path: str = "../vector_store/index.pkl") -> FAISS:
-    with open(path, "rb") as f:
-        return pickle.load(f)
+#def load_vector_store(path: str = "../vector_store/index.pkl") -> FAISS:
+    #with open(path, "rb") as f:
+        #return pickle.load(f)
+#def load_vector_store(path: str = "../vector_store/index.pkl") -> FAISS:
+    #with open(path, "rb") as f:
+        #vector_store, _ = pickle.load(f)  # Unpack and ignore 2nd item
+       # return vector_store
+
+
+
+from langchain.vectorstores import FAISS
+from langchain.embeddings import HuggingFaceEmbeddings
+
+def load_vector_store(path="vector_store") -> FAISS:
+    embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    return FAISS.load_local(
+        folder_path=path,
+        embeddings=embedding_model,
+        allow_dangerous_deserialization=True
+    )
+
+
+#def load_vector_store(path="vector_store") -> FAISS:
+    embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    return FAISS.load_local(folder_path=path, embeddings=embedding_model)
+
 
 # Step 2: Retrieve top-k context chunks using similarity search
 def retrieve_context(query: str, vector_store: FAISS, k: int = 5) -> List[str]:
@@ -54,7 +78,7 @@ def generate_answer(question: str, context_chunks: List[str], llm) -> str:
     return output.strip()
 
 # Step 5: Load the LLM (already customized by you!)
-def load_llm(model_name="mistralai/Mistral-7B-Instruct-v0.1"):
+# def load_llm(model_name="mistralai/Mistral-7B-Instruct-v0.1"):
     load_dotenv()
     hf_token = os.getenv("HUGGINGFACE_TOKEN")
 
@@ -67,6 +91,35 @@ def load_llm(model_name="mistralai/Mistral-7B-Instruct-v0.1"):
         "text-generation",
         model=model_name,
         token=hf_token,
+        max_new_tokens=256
+    )
+    return HuggingFacePipeline(pipeline=pipe)
+
+
+from transformers import pipeline
+from langchain.llms import HuggingFacePipeline
+
+#def load_llm(model_name="google/flan-t5-base"):
+   # pipe = pipeline(
+       # "text2text-generation",  # 🔁 Use text2text for Flan models
+       # model=model_name,
+      #  tokenizer=model_name,
+       # max_new_tokens=256
+    #)
+   # return HuggingFacePipeline(pipeline=pipe)
+
+
+from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
+from langchain.llms import HuggingFacePipeline
+
+def load_llm(local_dir="../models/flan-t5-base"):
+    tokenizer = AutoTokenizer.from_pretrained(local_dir)
+    model = AutoModelForSeq2SeqLM.from_pretrained(local_dir)
+
+    pipe = pipeline(
+        "text2text-generation",
+        model=model,
+        tokenizer=tokenizer,
         max_new_tokens=256
     )
     return HuggingFacePipeline(pipeline=pipe)
