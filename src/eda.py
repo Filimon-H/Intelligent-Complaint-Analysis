@@ -47,3 +47,26 @@ def describe_word_counts(df):
     """
     print("📊 Word count summary stats:")
     print(df['word_count'].describe())
+
+
+
+def plot_narrative_presence(df, column="Consumer complaint narrative"):
+    """
+    Adds a boolean flag and plots pie chart for presence of narratives.
+    """
+    df['has_narrative'] = df[column].notnull()
+    narrative_counts = df['has_narrative'].value_counts()
+
+    print("\n📊 Complaints with narratives:", narrative_counts.get(True, 0))
+    print("📊 Complaints without narratives:", narrative_counts.get(False, 0))
+
+    # Pie chart
+    plt.figure(figsize=(6, 6))
+    plt.pie(
+        narrative_counts,
+        labels=['Has Narrative', 'Missing Narrative'],
+        autopct='%1.1f%%',
+        colors=['skyblue', 'salmon']
+    )
+    plt.title("Complaints With vs Without Narratives")
+    plt.show()
