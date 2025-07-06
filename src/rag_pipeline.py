@@ -1,25 +1,30 @@
+
 # src/rag_pipeline.py
 
 import os
 import pickle
 from typing import List
+from dotenv import load_dotenv
+
+from transformers import pipeline
+from huggingface_hub import login
 from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.llms import HuggingFacePipeline
 from langchain.prompts import PromptTemplate
-from langchain.chains import RetrievalQA
+from langchain.chains import LLMChain
 
-# Load vector store
+# Step 1: Load the FAISS vector store (using the saved index.pkl)
 def load_vector_store(path: str = "../vector_store/index.pkl") -> FAISS:
     with open(path, "rb") as f:
         return pickle.load(f)
 
-# Retrieve top-k context chunks
+# Step 2: Retrieve top-k context chunks using similarity search
 def retrieve_context(query: str, vector_store: FAISS, k: int = 5) -> List[str]:
     docs = vector_store.similarity_search(query, k=k)
     return [doc.page_content for doc in docs]
 
-# Build the prompt template
+# Step 3: Define the RAG prompt template
 def get_prompt_template() -> PromptTemplate:
     template = """You are a financial analyst assistant for CrediTrust.
 Your task is to answer questions about customer complaints.
@@ -33,23 +38,35 @@ Question: {question}
 Answer:"""
     return PromptTemplate.from_template(template)
 
-# Generator: uses prompt, context, question to generate answer
+# Step 4: Generate an answer using context + prompt + user question
 def generate_answer(question: str, context_chunks: List[str], llm) -> str:
+    # Join the context chunks
     context = "\n\n".join(context_chunks)
-    prompt = get_prompt_template()
-    chain = RetrievalQA.from_chain_type(
-        llm=llm,
-        retriever=None,  # we are manually providing context
-        chain_type="stuff",
-        chain_type_kwargs={"prompt": prompt},
-        return_source_documents=False
-    )
-    return chain.combine_documents_chain.run(
-        {"context": context, "question": question}
-    )
 
-# Setup LLM (can replace with Mistral, Llama, etc.)
-def load_llm(model_name: str = "mistralai/Mistral-7B-Instruct-v0.1"):
-    from transformers import pipeline
-    pipe = pipeline("text-generation", model=model_name, max_new_tokens=256)
+    # Create the prompt
+    prompt_template = get_prompt_template()
+
+    # Create a LangChain LLMChain manually (no retriever)
+    chain = LLMChain(llm=llm, prompt=prompt_template)
+
+    # Generate answer
+    output = chain.run({"context": context, "question": question})
+    return output.strip()
+
+# Step 5: Load the LLM (already customized by you!)
+def load_llm(model_name="mistralai/Mistral-7B-Instruct-v0.1"):
+    load_dotenv()
+    hf_token = os.getenv("HUGGINGFACE_TOKEN")
+
+    if hf_token:
+        login(hf_token)
+    else:
+        raise ValueError("HUGGINGFACE_TOKEN not found in .env file.")
+
+    pipe = pipeline(
+        "text-generation",
+        model=model_name,
+        token=hf_token,
+        max_new_tokens=256
+    )
     return HuggingFacePipeline(pipeline=pipe)
