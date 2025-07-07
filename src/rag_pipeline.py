@@ -14,6 +14,8 @@ from langchain.llms import HuggingFacePipeline
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 
+from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+
 
 # Step 1: Load the FAISS vector store (using the saved index.pkl)
 #def load_vector_store(path: str = "../vector_store/index.pkl") -> FAISS:
@@ -77,8 +79,13 @@ def generate_answer(question: str, context_chunks: List[str], llm) -> str:
     output = chain.run({"context": context, "question": question})
     return output.strip()
 
-# Step 5: Load the LLM (already customized by you!)
-# def load_llm(model_name="mistralai/Mistral-7B-Instruct-v0.1"):
+########################3
+
+
+######################
+
+# Step 5: Load the LLM for mistralai model
+#def load_llm_Mistral(model_name="mistralai/Mistral-7B-Instruct-v0.1"):
     load_dotenv()
     hf_token = os.getenv("HUGGINGFACE_TOKEN")
 
@@ -96,17 +103,61 @@ def generate_answer(question: str, context_chunks: List[str], llm) -> str:
     return HuggingFacePipeline(pipeline=pipe)
 
 
+#def load_llm_Mistral(local_dir="../models/Mistral-7B-Instruct-v0.1"):
+    tokenizer = AutoTokenizer.from_pretrained(local_dir)
+    model = AutoModelForSeq2SeqLM.from_pretrained(local_dir)
+
+    pipe = pipeline(
+        "text2text-generation",
+        model=model,
+        tokenizer=tokenizer,
+        max_new_tokens=256
+    )
+    return HuggingFacePipeline(pipeline=pipe)
+
+
+def load_llm_Mistral(local_dir="../models/Mistral-7B-Instruct-v0.1"):
+    tokenizer = AutoTokenizer.from_pretrained(local_dir)
+    model = AutoModelForCausalLM.from_pretrained(local_dir)
+
+    pipe = pipeline(
+        "text-generation",
+        model=model,
+        tokenizer=tokenizer,
+        max_new_tokens=256,
+        do_sample=True,
+        temperature=0.7,
+        top_p=0.95
+    )
+    return HuggingFacePipeline(pipeline=pipe)
+
+##########################
+from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+from langchain.llms import HuggingFacePipeline
+
+def load_llm_falcon(local_dir="../models/falcon-rw-1b"):
+    tokenizer = AutoTokenizer.from_pretrained(local_dir)
+    model = AutoModelForCausalLM.from_pretrained(local_dir)
+
+    pipe = pipeline(
+        "text-generation",
+        model=model,
+        tokenizer=tokenizer,
+        max_new_tokens=256,
+        do_sample=True,
+        temperature=0.7,
+        top_p=0.95
+    )
+
+    return HuggingFacePipeline(pipeline=pipe)
+
+
+###########################
+
+
 from transformers import pipeline
 from langchain.llms import HuggingFacePipeline
 
-#def load_llm(model_name="google/flan-t5-base"):
-   # pipe = pipeline(
-       # "text2text-generation",  # 🔁 Use text2text for Flan models
-       # model=model_name,
-      #  tokenizer=model_name,
-       # max_new_tokens=256
-    #)
-   # return HuggingFacePipeline(pipeline=pipe)
 
 
 from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
@@ -123,3 +174,81 @@ def load_llm(local_dir="../models/flan-t5-base"):
         max_new_tokens=256
     )
     return HuggingFacePipeline(pipeline=pipe)
+
+
+
+def load_llm_large(local_dir="../models/flan-t5-large"):
+    tokenizer = AutoTokenizer.from_pretrained(local_dir)
+    model = AutoModelForSeq2SeqLM.from_pretrained(local_dir)
+
+    pipe = pipeline(
+        "text2text-generation",
+        model=model,
+        tokenizer=tokenizer,
+        max_new_tokens=256
+    )
+    return HuggingFacePipeline(pipeline=pipe)
+
+
+
+
+
+
+##########################
+import requests
+import os
+from dotenv import load_dotenv
+
+# Load Hugging Face token from .env for safety
+load_dotenv()
+HUGGINGFACE_API_TOKEN = os.getenv("HUGGINGFACE_TOKEN")
+API_URL = "https://api-inference.huggingface.co/models/tiiuae/falcon-rw-1b"
+HEADERS = {"Authorization": f"Bearer {HUGGINGFACE_API_TOKEN}"}
+
+def load_llm_falcon():
+    def llm_api_call(prompt: str):
+        payload = {
+            "inputs": prompt,
+            "options": {"use_cache": True, "wait_for_model": True}
+        }
+        response = requests.post(API_URL, headers=HEADERS, json=payload)
+        if response.status_code == 200:
+            return response.json()[0]["generated_text"]
+        else:
+            raise Exception(f"Error {response.status_code}: {response.text}")
+    
+    return llm_api_call
+
+
+
+
+
+# src/rag_pipeline.py (or rag_interface.py)
+
+import os
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+HF_TOKEN = os.getenv("HUGGINGFACE_TOKEN")
+API_URL_MISTRAL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1"
+HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"}
+
+def load_llm_mistral():
+    """
+    Returns a function that queries the Mistral-7B-Instruct API.
+    """
+    def llm_api_call(prompt: str):
+        # Wrap prompt in Mistral's required INST tokens
+        wrapped = f"<s>[INST] {prompt} [/INST]"
+        payload = {
+            "inputs": wrapped,
+            "parameters": {"return_full_text": False, "max_new_tokens": 256},
+            "options": {"wait_for_model": True}
+        }
+        resp = requests.post(API_URL_MISTRAL, headers=HEADERS, json=payload)
+        if resp.status_code == 200:
+            return resp.json()[0]["generated_text"]
+        else:
+            raise Exception(f"Mistral API error {resp.status_code}: {resp.text}")
+    return llm_api_call
