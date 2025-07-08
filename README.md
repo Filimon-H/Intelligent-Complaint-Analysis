@@ -92,17 +92,94 @@ project-root/
 
 
 ---
+## 🧠 Task 3: RAG Core Logic and Evaluation
 
-## 🚀 Next Step (Task 3)
+### 🎯 Objective
 
-Build a **RAG pipeline** to:
-- Use vector store to retrieve relevant chunks
-- Pass those chunks into an LLM (e.g., Mistral, GPT-3.5)
-- Generate grounded answers to product manager questions
+To build a modular **Retrieval-Augmented Generation (RAG)** system that accurately answers user questions about customer complaints by combining semantic retrieval and generative AI.
 
 ---
 
-## 📌 Requirements
+### 🏗️ Key Components
 
-```bash
-pip install pandas tqdm sentence-transformers langchain faiss-cpu
+- **Retriever Module**  
+  Embeds the user’s question using the same `all-MiniLM-L6-v2` model from Task 2 and retrieves the top 5 most relevant chunks using FAISS.
+
+- **Prompt Template**
+
+  ```text
+  You are a financial analyst assistant for CrediTrust.
+  Your task is to answer questions about customer complaints.
+  Use the following retrieved complaint excerpts to formulate your answer.
+  If the context doesn't contain the answer, state that you don't have enough information.
+
+  Context:
+  {context}
+
+  Question: {question}
+  Answer:
+This prompt helps reduce hallucination and ensures the model stays grounded in the retrieved evidence.
+
+Generator Module
+Uses a locally downloaded flan-t5-base model (via Hugging Face and LangChain) to generate well-structured answers using the prompt and retrieved content.
+
+📊 Evaluation Strategy
+Created a set of 20 real-world, representative questions.
+
+Evaluated answers for:
+
+Relevance
+
+Grounding in context
+
+Clarity
+
+Used a table format with fields:
+
+Question
+
+Generated Answer
+
+Retrieved Sources
+
+Quality Score (1–5)
+
+Comments
+
+✅ Sample Results (Excerpt)
+Question	Score	Comments
+Do customers complain about unexpected fees?	4	Clear and supported
+What are recurring issues in Buy Now, Pay Later services?	5	Highly accurate
+Do users report identity theft?	3	Lacked enough evidence
+
+💡 Recommendations
+Area	Suggestion
+🔁 Context Relevance	Add filtering or re-ranking to improve source precision
+📦 Model Performance	Experiment with flan-t5-large or quantized Llama models
+🧪 Evaluation	Introduce user feedback scoring and categorize question types
+📐 Scaling	Add RAG output to dashboards or auto-tag complaints
+
+💬 Task 4: Interactive Chat Interface (Streamlit)
+🎯 Objective
+To create a user-friendly interface for non-technical users (e.g., customer service teams, product managers) to interact with the RAG system.
+
+🖥️ Features
+🔎 Text input box for asking natural language questions
+
+🤖 Model-generated answer display
+
+📚 Source chunks shown under an expandable section
+
+🧹 "Clear Chat History" button
+
+💾 Local loading of the LLM (flan-t5-base) for fast and private inference
+
+🚀 How to Run
+Ensure you have the local model downloaded in:
+models/flan-t5-base/
+
+Activate the virtual environment and run:
+
+streamlit run app.py
+Interact with the assistant in the browser.
+
